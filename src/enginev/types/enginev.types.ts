@@ -5,14 +5,12 @@
 
 import {
   GenerateComponentCodeRequest,
-  GenerateComponentCodeResponseError,
-  GenerateComponentCodeResponseSuccess,
+  GenerateComponentCodeResponse,
 } from './generatecomponent.types';
 import {
   GenerateJSONRequest,
-  GenerateJSONResponseError,
-  GenerateJSONResponseSuccess,
-} from './generatejson.types';
+  GenerateJSONResponse,
+} from '../pipeline/generate-design-json-from-desc/types/generatejson.types';
 
 // Generic interface for request-response pairing
 export interface EngineVRequestResponsePair<
@@ -39,31 +37,32 @@ export type EngineVRequest = GenerateJSONRequest | GenerateComponentCodeRequest;
 
 // Union type for all possible responses (success or error)
 export type EngineVResponse =
-  | GenerateJSONResponseSuccess
-  | GenerateJSONResponseError
-  | GenerateComponentCodeResponseSuccess
-  | GenerateComponentCodeResponseError;
+  | GenerateJSONResponse
+  | GenerateComponentCodeResponse;
 
 // Create specific types for each request/response pair
 export type EngineVRequestResponsePairForGenerateJSON =
-  EngineVRequestResponsePair<
-    GenerateJSONRequest,
-    GenerateJSONResponseSuccess | GenerateJSONResponseError
-  >;
+  EngineVRequestResponsePair<GenerateJSONRequest, GenerateJSONResponse>;
 
 export type EngineVRequestResponsePairForGenerateComponentCode =
   EngineVRequestResponsePair<
     GenerateComponentCodeRequest,
-    GenerateComponentCodeResponseSuccess | GenerateComponentCodeResponseError
+    GenerateComponentCodeResponse
   >;
+
+export type EngineVStartRequest = {
+  request_type: 'start';
+  component_description: string;
+  // theme_colors?: string[];
+};
 
 // Combine them into a union for the context
 export type EngineVRequestResponsePairUnion =
+  | EngineVStartRequest
   | EngineVRequestResponsePairForGenerateJSON
   | EngineVRequestResponsePairForGenerateComponentCode;
 
 // EngineVContext that ensures request-response pairing is enforced
 export interface EngineVContext {
   requestResponses: EngineVRequestResponsePairUnion[];
-  state: 'generate_json';
 }

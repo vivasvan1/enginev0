@@ -1,189 +1,152 @@
 import { Injectable } from '@nestjs/common';
-import { EngineVContext } from './types/enginev.types';
-import ollama from 'ollama';
-import { config as dotenvConfig } from 'dotenv';
+import { GenerateDesignJsonFromDescService } from './pipeline/generate-design-json-from-desc/generate-design-json-from-desc.service';
+import {
+  EngineVContext,
+  EngineVRequest,
+  EngineVStartRequest,
+} from './types/enginev.types';
+import {
+  GenerateJSONRequest,
+  GenerateJSONResponse,
+} from './pipeline/generate-design-json-from-desc/types/generatejson.types';
+import { CollectUiComponentsFromDescriptionService } from './pipeline/collect-ui-components-from-desc/collect-ui-component-from-desc';
+import {
+  CollectUiComponentRequest,
+  CollectUiComponentResponse,
+} from './pipeline/collect-ui-components-from-desc/types/collect-ui-component-from-desc.types';
+import {
+  CollectUiIconsRequest,
+  CollectUiIconsResponse,
+} from './pipeline/collect-ui-icons-from-desc/types/collect-ui-icons-from-desc.types';
+import { CollectUiIconsFromDescriptionService } from './pipeline/collect-ui-icons-from-desc/collect-ui-icons-from-desc';
+import { UIComponent } from './types/elements.types';
+import { EngineVError } from './types/errors';
+
+enum EngineVState {
+  Loading = 'loading',
+  Ready = 'ready',
+  Start = 'start',
+  Next = 'next',
+}
 
 @Injectable()
 export class EnginevService {
-  private ollama_config = dotenvConfig({ "path": "src/config/.ollama" })
-  private generate_json_tool_call = {
-    'type': 'function',
-    'function': {
-      'name': 'generate_json_from_description',
-      'description': 'generate the design json from the description of the component.',
-      'parameters': {
-        'type': 'object',
-        'properties': {
-          'component_name': {
-            'type': 'string',
-            'description': 'The name of the component',
-          },
-          'component_description': {
-            'type': "string",
-            'description': "Describe in plain english the style, use case of the component"
-          },
-          // TODO: Add in v2
-          // 'theme_colors': {
-          //   'type': 'array',
-          //   'items': {
-          //     'type': 'string'
-          //   },
-          //   'description': 'Optional array of theme colors'
-          // },
-          'required_ui_components': {
-            'type': 'array',
-            'items': {
-              'type': 'object',
-              'properties': {
-                'name': {
-                  'type': 'string',
-                  'description': 'Name of the UI component'
-                },
-                'description': {
-                  'type': 'string',
-                  'description': 'Description of the UI component'
-                },
-                'demo_code': {
-                  'type': 'string',
-                  'description': 'Demo code for the UI component'
-                },
-                'examples': {
-                  'type': 'array',
-                  'items': {
-                    'type': 'string',
-                    'description': 'Examples of the UI component'
-                  }
-                },
-                'required': {
-                  'type': 'boolean',
-                  'description': 'Whether the UI component is required'
-                }
-              },
-              'required': [
-                'name',
-                'description',
-                'demo_code',
-                'examples',
-                'required'
-              ]
-            },
-            'description': 'Required UI components for the component'
-          },
-          'optional_ui_components': {
-            'type': 'array',
-            'items': {
-              'type': 'object',
-              'properties': {
-                'name': {
-                  'type': 'string',
-                  'description': 'Name of the UI component'
-                },
-                'description': {
-                  'type': 'string',
-                  'description': 'Description of the UI component'
-                },
-                'demo_code': {
-                  'type': 'string',
-                  'description': 'Demo code for the UI component'
-                },
-                'examples': {
-                  'type': 'array',
-                  'items': {
-                    'type': 'string',
-                    'description': 'Examples of the UI component'
-                  }
-                },
-                'required': {
-                  'type': 'boolean',
-                  'description': 'Whether the UI component is required'
-                }
-              },
-              'required': [
-                'name',
-                'description',
-                'demo_code',
-                'examples',
-                'required'
-              ]
-            },
-            'description': 'Optional UI components for the component'
-          },
-          'required_icon_components': {
-            'type': 'array',
-            'items': {
-              'type': 'object',
-              'properties': {
-                'name': {
-                  'type': 'string',
-                  'description': 'Name of the icon component'
-                },
-                'description': {
-                  'type': 'string',
-                  'description': 'Description of the icon component'
-                },
-                'demo_code': {
-                  'type': 'string',
-                  'description': 'Demo code for the icon component'
-                }
-              },
-              'required': [
-                'name',
-                'description',
-                'demo_code'
-              ]
-            },
-            'description': 'Required icon components for the component'
-          },
-          'optional_icon_components': {
-            'type': 'array',
-            'items': {
-              'type': 'object',
-              'properties': {
-                'name': {
-                  'type': 'string',
-                  'description': 'Name of the icon component'
-                },
-                'description': {
-                  'type': 'string',
-                  'description': 'Description of the icon component'
-                },
-                'demo_code': {
-                  'type': 'string',
-                  'description': 'Demo code for the icon component'
-                }
-              },
-              'required': [
-                'name',
-                'description',
-                'demo_code'
-              ]
-            },
-            'description': 'Optional icon components for the component'
-          }
-        },
-        'required': ['component_name', 'component_description'],
-      }
-    },
+  private ctx: EngineVContext = {
+    requestResponses: [],
+  };
+  constructor(
+    private readonly collectUiComponentsService: CollectUiComponentsFromDescriptionService,
+    private readonly collectUiIconsService: CollectUiIconsFromDescriptionService,
+    private readonly generateJsonService: GenerateDesignJsonFromDescService,
+    // private readonly generateComponentService: GenerateComponentService
+  ) {
+    // do initialization here
   }
-  private generate_json_system_message = `Your task is to generate a JSON schema for the user's request.\n` +
-    `Please follow the format specified in the user's description.\n` +
-    `You can ask clarifying questions if needed.`
 
+  reset() {
+    this.ctx.requestResponses = [];
+  }
 
-  async generateJSONfromDescription(ctx: EngineVContext): Promise<EngineVContext> {
-    const ai_response = ollama.chat({
-      model: this.ollama_config.parsed.MODEL,
-      messages: [
-        {
-          role: "system",
-          content: this.generate_json_system_message,
-        }
-      ],
-      tools: [this.generate_json_tool_call]
+  async start({
+    request,
+  }: {
+    request: EngineVStartRequest;
+  }): Promise<EngineVContext> {
+    console.log(request);
+    this.reset();
+
+    const collected_ui_components = await this.collectUiComponents(this.ctx, {
+      request_type: 'collect_ui_components',
+      component_description: request.component_description,
+    }).retry(3);
+
+    if (collected_ui_components.status === 'error') {
+      throw new EngineVError(
+        'CollectUiComponentFailed:',
+        'Failed to collect UI components',
+      );
+    }
+
+    const collected_ui_icons = await this.collectUiIcons(this.ctx, {
+      request_type: 'collect_ui_icons',
+      component_description: request.component_description,
+    }).retry(3);
+
+    if (collected_ui_icons.status === 'error') {
+      throw new EngineVError(
+        'CollectUiIconsFailed:',
+        'Failed to collect UI icons',
+      );
+    }
+
+    const design_json = await this.generateJSONfromDescription(this.ctx, {
+      request_type: 'generate_json',
+      component_description: request.component_description,
+      collected_ui_components: collected_ui_components.data.ui_components,
+      collected_ui_components_reasons: collected_ui_components.data.reasons,
+      collected_ui_icons: collected_ui_icons.data.icon_names,
+      collected_ui_icons_reasons: collected_ui_icons.data.reasons,
     });
 
-    console.log(ai_response);
+    return this.ctx;
+  }
 
+  async repeatPrevious() {
+    return this.ctx;
+  }
+
+  async next({
+    request,
+  }: {
+    request: EngineVRequest;
+  }): Promise<EngineVContext> {
+    return this.ctx;
+  }
+
+  private async collectUiComponents(
+    ctx: EngineVContext,
+    req: CollectUiComponentRequest,
+  ): Promise<CollectUiComponentResponse> {
+    const res = await this.collectUiComponentsService.run(ctx, req);
+    this.handleRequestResponse(ctx, req, res);
+
+    if (res.status === 'error') {
+      throw new EngineVError(
+        'CollectUiComponentFailed:',
+        'Failed to collect UI components',
+      );
+    }
+
+    return res;
+  }
+
+  private async collectUiIcons(
+    ctx: EngineVContext,
+    req: CollectUiIconsRequest,
+  ): Promise<CollectUiIconsResponse> {
+    const res = await this.collectUiIconsService.run(ctx, req);
+    this.handleRequestResponse(ctx, req, res);
+    return res;
+  }
+
+  private async generateJSONfromDescription(
+    ctx: EngineVContext,
+    req: GenerateJSONRequest,
+  ): Promise<GenerateJSONResponse> {
+    const res = await this.generateJsonService.run(ctx, req);
+    this.handleRequestResponse(ctx, req, res);
+    return res;
+  }
+
+  private handleRequestResponse(
+    ctx: EngineVContext,
+    req: any,
+    res: any,
+  ): EngineVContext {
+    ctx.requestResponses.push({
+      request: req,
+      response: res,
+    });
     return ctx;
   }
 }

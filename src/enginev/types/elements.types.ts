@@ -9,7 +9,7 @@ export interface UIComponent {
 
 export interface IconComponent {
   name: string;
-  description: string;
+  description?: string;
   demo_code: string;
 
   required?: boolean;

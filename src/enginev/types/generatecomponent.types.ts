@@ -13,7 +13,9 @@ export interface GenerateComponentCodeRequest extends AbstractEngineVRequest {
   framework: string;
 }
 
-export interface GenerateComponentCodeResponseSuccess
+export type GenerateComponentCodeResponse = GenerateComponentCodeResponseSuccess | GenerateComponentCodeResponseError;
+
+interface GenerateComponentCodeResponseSuccess
   extends AbstractEngineVResponse {
   response_type: 'generate_component_code';
   code: string;
@@ -21,7 +23,7 @@ export interface GenerateComponentCodeResponseSuccess
   status: 'success';
 }
 
-export interface GenerateComponentCodeResponseError
+interface GenerateComponentCodeResponseError
   extends AbstractEngineVResponse {
   response_type: 'generate_component_code';
   error: string;
