@@ -6,7 +6,8 @@ import {
 } from '../../../types/enginev.types';
 import { EngineVError } from '../../../types/errors';
 
-export interface GenerateJSONRequest extends AbstractEngineVRequest {
+export interface GenerateDesignJsonFromDescriptionRequest
+  extends AbstractEngineVRequest {
   request_type: 'generate_json';
   component_description: string;
   collected_ui_components?: UIComponent[];
@@ -15,11 +16,12 @@ export interface GenerateJSONRequest extends AbstractEngineVRequest {
   collected_ui_icons_reasons?: string[];
 }
 
-export type GenerateJSONResponse =
-  | GenerateJSONResponseSuccess
-  | GenerateJSONResponseError;
+export type GenerateDesignJsonFromDescriptionResponse =
+  | GenerateDesignJsonFromDescriptionResponseSuccess
+  | GenerateDesignJsonFromDescriptionResponseError;
 
-interface GenerateJSONResponseSuccess extends AbstractEngineVResponse {
+export interface GenerateDesignJsonFromDescriptionResponseSuccess
+  extends AbstractEngineVResponse {
   response_type: 'generate_json';
   data: {
     component_name: string;
@@ -36,7 +38,8 @@ interface GenerateJSONResponseSuccess extends AbstractEngineVResponse {
   status: 'success';
 }
 
-interface GenerateJSONResponseError extends AbstractEngineVResponse {
+export interface GenerateDesignJsonFromDescriptionResponseError
+  extends AbstractEngineVResponse {
   response_type: 'generate_json';
   error: EngineVError;
   status: 'error';

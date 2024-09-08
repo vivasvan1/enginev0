@@ -3,9 +3,9 @@ import ollama from 'ollama';
 import { config as dotenvConfig } from 'dotenv';
 import { EngineVContext } from '../../types/enginev.types';
 import {
-  GenerateJSONRequest,
-  GenerateJSONResponse,
-} from './types/generatejson.types';
+  GenerateDesignJsonFromDescriptionRequest,
+  GenerateDesignJsonFromDescriptionResponse,
+} from './types/generate-design-json-from-desc.types';
 import { MyLogger } from 'src/logger';
 
 @Injectable()
@@ -14,7 +14,7 @@ export class GenerateDesignJsonFromDescService {
     path: process.env.OLLAMA_CONFIG_PATH,
   });
 
-  private generate_json_system_message =
+  private system_message =
     `Your task is to generate a JSON schema for the user's request.\n` +
     `Please follow the format specified in the user's description.\n` +
     `You can ask clarifying questions if needed.`;
@@ -23,21 +23,21 @@ export class GenerateDesignJsonFromDescService {
 
   async run(
     context: EngineVContext,
-    request: GenerateJSONRequest,
-  ): Promise<GenerateJSONResponse> {
+    request: GenerateDesignJsonFromDescriptionRequest,
+  ): Promise<GenerateDesignJsonFromDescriptionResponse> {
     const ai_response = await ollama.chat({
       model: this.ollama_config.parsed.MODEL,
       messages: [
         {
           role: 'system',
-          content: this.generate_json_system_message,
+          content: this.system_message,
         },
         {
           role: 'user',
           content: request.component_description,
         },
       ],
-      tools: [generate_json_tool_call],
+      tools: [tool],
     });
 
     const function_args = ai_response.message.tool_calls[0].function.arguments;
@@ -61,7 +61,7 @@ export class GenerateDesignJsonFromDescService {
   }
 }
 
-const generate_json_tool_call = {
+const tool = {
   type: 'function',
   function: {
     name: 'generate_json_from_description',

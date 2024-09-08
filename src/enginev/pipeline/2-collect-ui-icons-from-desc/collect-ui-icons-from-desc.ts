@@ -9,6 +9,7 @@ import iconNamesJson from 'lib/scripts/icon_names.json';
 import iconCodesJson from 'lib/scripts/icon_codes.json';
 import { MyLogger } from 'src/logger';
 import { EngineVContext } from 'src/enginev/types/enginev.types';
+import Fuse from 'fuse.js';
 
 @Injectable()
 export class CollectUiIconsFromDescriptionService {
@@ -17,12 +18,13 @@ export class CollectUiIconsFromDescriptionService {
   }).parsed;
 
   private readonly logger: MyLogger;
-  private readonly systemMessageTemplate: string;
+  private readonly systemMessage: string;
   private readonly availableIconsMessage: string;
+  private readonly fuse: Fuse<string>;
 
   constructor(logger: MyLogger) {
     this.logger = logger;
-    this.systemMessageTemplate =
+    this.systemMessage =
       `You are a UI component designer. You have been given a description of a UI component.\n` +
       `Please select the Font Awesome react-icons you think can be utilized for the provided component description. ONLY USE FONT AWESOME ICONS.\n` +
       `Also think about the reason why you think so.\n\n` +
@@ -34,6 +36,12 @@ export class CollectUiIconsFromDescriptionService {
 
     this.availableIconsMessage =
       `Available icons list: \n` + `[${iconNamesJson.join(', ')}]\n\n`;
+
+    // Fuzzy search logic using Fuse.js
+    this.fuse = new Fuse(iconNamesJson, {
+      includeScore: true,
+      threshold: 0.4, // Adjust this threshold for tighter or looser matching
+    });
   }
 
   /**
@@ -55,9 +63,19 @@ export class CollectUiIconsFromDescriptionService {
       this.logger.log('Parsed Response:', parsedResponse);
 
       // Step 3: Filter out icons that are not available in the icon codes JSON
-      const filteredIcons = parsedResponse.icon_names.filter(
-        (icon_name: string) => Object.keys(iconCodesJson).includes(icon_name),
-      );
+      const filteredIcons = parsedResponse.icon_names
+        .map((icon_name: string) => {
+          // Perform fuzzy search using Fuse.js
+          const result = this.fuse.search(icon_name);
+
+          // If a result is found, take the first one (best match)
+          if (result.length > 0) {
+            return result[0].item;
+          } else {
+            return null;
+          }
+        })
+        .filter((icon_name: string | null) => icon_name !== null);
 
       return {
         response_type: 'collect_ui_icons',
@@ -88,7 +106,7 @@ export class CollectUiIconsFromDescriptionService {
         messages: [
           {
             role: 'system',
-            content: this.systemMessageTemplate,
+            content: this.systemMessage,
           },
           {
             role: 'user',

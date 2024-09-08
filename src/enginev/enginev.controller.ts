@@ -1,8 +1,10 @@
-import { Body, Controller, Logger, Param, Post } from '@nestjs/common';
+import { Body, Controller, Post } from '@nestjs/common';
+import { HttpException, HttpStatus } from '@nestjs/common';
+
 import { EngineVContext } from './types/enginev.types';
 import { StartDto } from './start.dto';
 import { EnginevService } from './enginev.service';
-import { ApiProperty, ApiTags } from '@nestjs/swagger';
+import { ApiTags } from '@nestjs/swagger';
 import { MyLogger } from 'src/logger';
 
 @ApiTags('nginv')
@@ -13,13 +15,23 @@ export class EnginevController {
     private readonly logger: MyLogger,
   ) {}
 
-  @Post('/start')
-  async start(@Body() startDto: StartDto): Promise<EngineVContext> {
-    return await this.engineV.start({
-      request: {
-        request_type: 'start',
-        component_description: startDto.description,
-      },
-    });
+  @Post('/generate')
+  async generate(@Body() startDto: StartDto): Promise<EngineVContext> {
+    try {
+      this.engineV.reset();
+      return await this.engineV.start({
+        request: {
+          request_type: 'start',
+          component_description: startDto.description,
+        },
+      });
+    } catch (error) {
+      this.logger.error('Error in generate', error);
+      // Return an error response
+      throw new HttpException(
+        JSON.stringify(error),
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
   }
 }

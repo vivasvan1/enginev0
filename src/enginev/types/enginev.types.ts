@@ -8,9 +8,13 @@ import {
   GenerateComponentCodeResponse,
 } from './generatecomponent.types';
 import {
-  GenerateJSONRequest,
-  GenerateJSONResponse,
-} from '../pipeline/generate-design-json-from-desc/types/generatejson.types';
+  GenerateDesignJsonFromDescriptionRequest,
+  GenerateDesignJsonFromDescriptionResponse,
+} from '../pipeline/3-generate-design-json-from-desc/types/generate-design-json-from-desc.types';
+import {
+  GenerateCodeFromDesignJsonRequest,
+  GenerateCodeFromDesignJsonResponse,
+} from '../pipeline/4-generare-code-from-design-json/types/generate-code-from-design-json.types';
 
 // Generic interface for request-response pairing
 export interface EngineVRequestResponsePair<
@@ -33,21 +37,34 @@ export interface AbstractEngineVResponse {
 }
 
 // Union type for all possible requests
-export type EngineVRequest = GenerateJSONRequest | GenerateComponentCodeRequest;
+export type EngineVRequest =
+  | GenerateDesignJsonFromDescriptionRequest
+  | GenerateComponentCodeRequest
+  | GenerateCodeFromDesignJsonRequest;
 
 // Union type for all possible responses (success or error)
 export type EngineVResponse =
-  | GenerateJSONResponse
-  | GenerateComponentCodeResponse;
+  | GenerateDesignJsonFromDescriptionResponse
+  | GenerateComponentCodeResponse
+  | GenerateCodeFromDesignJsonResponse;
 
 // Create specific types for each request/response pair
 export type EngineVRequestResponsePairForGenerateJSON =
-  EngineVRequestResponsePair<GenerateJSONRequest, GenerateJSONResponse>;
+  EngineVRequestResponsePair<
+    GenerateDesignJsonFromDescriptionRequest,
+    GenerateDesignJsonFromDescriptionResponse
+  >;
 
 export type EngineVRequestResponsePairForGenerateComponentCode =
   EngineVRequestResponsePair<
     GenerateComponentCodeRequest,
     GenerateComponentCodeResponse
+  >;
+
+export type EngineVRequestResponsePairForGenerateCodeFromDesignJson =
+  EngineVRequestResponsePair<
+    GenerateCodeFromDesignJsonRequest,
+    GenerateCodeFromDesignJsonResponse
   >;
 
 export type EngineVStartRequest = {
@@ -60,7 +77,8 @@ export type EngineVStartRequest = {
 export type EngineVRequestResponsePairUnion =
   | EngineVStartRequest
   | EngineVRequestResponsePairForGenerateJSON
-  | EngineVRequestResponsePairForGenerateComponentCode;
+  | EngineVRequestResponsePairForGenerateComponentCode
+  | EngineVRequestResponsePairForGenerateCodeFromDesignJson;
 
 // EngineVContext that ensures request-response pairing is enforced
 export interface EngineVContext {

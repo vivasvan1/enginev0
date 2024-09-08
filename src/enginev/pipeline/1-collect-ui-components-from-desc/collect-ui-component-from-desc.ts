@@ -9,6 +9,7 @@ import shadcn_processed_json from 'src/enginev/component-library/shadcn-processe
 import { MyLogger } from 'src/logger';
 import { EngineVContext } from 'src/enginev/types/enginev.types';
 import { UIComponent } from 'src/enginev/types/elements.types';
+import { EngineVError } from 'src/enginev/types/errors';
 
 @Injectable()
 export class CollectUiComponentsFromDescriptionService {
@@ -16,7 +17,7 @@ export class CollectUiComponentsFromDescriptionService {
     path: process.env.OLLAMA_CONFIG_PATH,
   });
 
-  private collect_ui_components_system_message =
+  private system_message =
     `Your task is to generate a JSON schema for the user's request.\n` +
     `Please follow the format specified in the user's description.\n`;
 
@@ -37,7 +38,7 @@ export class CollectUiComponentsFromDescriptionService {
       messages: [
         {
           role: 'system',
-          content: this.collect_ui_components_system_message,
+          content: this.system_message,
         },
         {
           role: 'user',
@@ -48,11 +49,39 @@ export class CollectUiComponentsFromDescriptionService {
           content: `Component description: ${request.component_description}`,
         },
       ],
-      tools: [collect_ui_components_tool_call],
+      tools: [tool],
     });
 
     const function_args = ai_response.message.tool_calls[0].function.arguments;
     this.logger.log(function_args);
+
+    if (typeof function_args.ui_components === 'string') {
+      try {
+        function_args.ui_components = JSON.parse(function_args.ui_components);
+      } catch (error) {
+        this.logger.error(error);
+        throw new EngineVError(
+          'InvalidJson',
+          'Failed to parse JSON: function_args.ui_components',
+        );
+      }
+    }
+
+    function_args.ui_components = Array.from(
+      new Set<string>(function_args.ui_components),
+    );
+
+    if (typeof function_args.reasons === 'string') {
+      try {
+        function_args.reasons = JSON.parse(function_args.reasons);
+      } catch (error) {
+        this.logger.error(error);
+        throw new EngineVError(
+          'InvalidJson',
+          'Failed to parse JSON: function_args.reasons',
+        );
+      }
+    }
 
     const exisiting_components: string[] = function_args.ui_components.filter(
       (component_name: string) =>
@@ -80,7 +109,7 @@ export class CollectUiComponentsFromDescriptionService {
     };
   }
 }
-const collect_ui_components_tool_call: Tool = {
+const tool: Tool = {
   type: 'function',
   function: {
     name: 'collect_ui_components',
